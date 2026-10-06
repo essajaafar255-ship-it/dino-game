@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrome Dino Game - Hack Edition</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f7f7f7;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #535353;
+            user-select: none;
+            transition: background-color 0.5s, color 0.5s;
+            overflow: hidden;
+        }
+        body.dark-mode {
+            background-color: #202124;
+            color: #e8eaed;
+        }
+        .game-wrapper {
+            position: relative;
+            width: 600px;
+        }
+        .canvas-container {
+            position: relative;
+            width: 600px;
+            height: 150px;
+            border-bottom: 2px solid transparent;
+        }
+        canvas {
+            display: block;
+            background: transparent;
+        }
+        /* Retro Integrated Cheat Menu Layout */
+        .cheat-panel {
+            margin-top: 30px;
+            padding: 15px 20px;
+            width: 100%;
+            background: #ffffff;
+            border: 1px dashed #535353;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            font-size: 13px;
+            transition: background 0.5s, border-color 0.5s;
+        }
+        body.dark-mode .cheat-panel {
+            background: #2a2b2e;
+            border-color: #e8eaed;
+        }
+        .cheat-group {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .cheat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cheat-item input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: #535353;
+        }
+        body.dark-mode .cheat-item input[type="checkbox"] {
+            accent-color: #e8eaed;
+        }
+        .cheat-item button {
+            background: #535353;
+            color: #fff;
+            border: none;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 11px;
+            border-radius: 2px;
+        }
+        .cheat-item button:hover {
+            opacity: 0.9;
+        }
+        body.dark-mode .cheat-item button {
+            background: #e8eaed;
+            color: #202124;
+        }
+        .game-info {
+            margin-top: 12px;
+            font-size: 11px;
+            opacity: 0.6;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-wrapper">
+        <!-- Canvas Container -->
+        <div class="canvas-container">
+            <canvas id="dinoCanvas" width="600" height="150"></canvas>
+        </div>
+
+        <!-- Integrated Cheat Panel Mod Engine -->
+        <div class="cheat-panel">
+            <div class="cheat-group">
+                <div class="cheat-item">
+                    <input type="checkbox" id="godModeToggle">
+                    <label for="godModeToggle"><b>[H] God Mode</b> (Invincibility)</label>
+                </div>
+                <div class="cheat-item">
+                    <input type="checkbox" id="autoJumpToggle">
+                    <label for="autoJumpToggle"><b>[A] Auto-Bot Player</b></label>
+                </div>
+            </div>
+            <div class="cheat-item">
+                <button id="addScoreBtn">+1000 Score</button>
+            </div>
+        </div>
+
+        <div class="game-info">
+            Press <b>Space / ↑</b> to Jump | Press <b>↓</b> to Duck | Press <b>H</b> to instantly toggle God Mode
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("dinoCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // UI & Mod Input Connectors
+        const godModeCheck = document.getElementById("godModeToggle");
+        const autoJumpCheck = document.getElementById("autoJumpToggle");
+        const addScoreBtn = document.getElementById("addScoreBtn");
+
+        // Physics Constants & Variable State Tracking
+        const GRAVITY = 0.6;
+        let gameSpeed = 6;
+        const INITIAL_SPEED = 6;
+        let score = 0;
+        let highScore = 0;
+        let gameFrame = 0;
+        let nextObstacleFrame = 120;
+        let isGameOver = false;
+        let isStarted = false;
+        let nightMode = false;
+
+        // Interactive Event Hookups
+        window.addEventListener("keydown", (e) => {
+            if (e.code === "KeyH") {
+                godModeCheck.checked = !godModeCheck.checked;
+            }
+            if (e.code === "KeyA") {
+                autoJumpCheck.checked = !autoJumpCheck.checked;
+            }
+        });
+        
+        addScoreBtn.addEventListener("click", () => {
+            if (isStarted && !isGameOver) {
+                score += 1000;
+                playSound('score');
+            }
+        });
+
+        // Synthetic Web Audio System Engine (Zero Asset Dependency)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                if (type === 'jump') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(750, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(250, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'score') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(950, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(1300, audioCtx.currentTime + 0.07);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.22);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.22);
+                } else if (type === 'hit') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.35);
+                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.35);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.35);
+                }
+            } catch(e) {}
+        }
+
+        // T-Rex Player Class Implementation
+        const dino = {
+            x: 50,
+            y: 114,
+            width: 44,
+            height: 47,
+            standHeight: 47,
+            duckHeight: 30,
+            vy: 0,
+            jumpForce: -10,
+            isJumping: false,
+            isDucking: false,
+            legFrameToggle: false,
+
+            update() {
+                // Physics Calculations
+                this.vy += GRAVITY;
+                this.y += this.vy;
+
+                let groundLevel = 114;
+                if (this.isDucking && !this.isJumping) {
+                    groundLevel = 114 + (this.standHeight - this.duckHeight);
+                }
+
+                if (this.y > groundLevel) {
+                    this.y = groundLevel;
+                    this.vy = 0;
+                    this.isJumping = false;
+                }
+
+                if (gameFrame % 6 === 0) {
+                    this.legFrameToggle = !this.legFrameToggle;
+                }
+            },
+
+            draw() {
+                ctx.fillStyle = nightMode ? "#e8eaed" : "#535353";
+                
+                if (isGameOver) {
+                    // Render Dead Frame state
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                    return;
+                }
+
+                if (this.isDucking && !this.isJumping) {
+                    // Render Ducking State Layout
+                    ctx.fillRect(this.x, this.y, 59, this.duckHeight);
+                    ctx.fillStyle = nightMode ? "#202124" : "#f7f7f7";
+                    if (this.legFrameToggle) {
+                        ctx.fillRect(this.x + 15, this.y + 25, 8, 5);
+                    } else {
+                        ctx.fillRect(this.x + 35, this.y + 25, 8, 5);
+                    }
+                } else {
+                    // Standard Running Frame View Layout
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                    if (!this.isJumping) {
+                        ctx.fillStyle = nightMode ? "#202124" : "#f7f7f7";
+                        if (this.legFrameToggle) {
+                            ctx.fillRect(this.x + 10, this.y + 35, 10, 15);
+                        } else {
+                            ctx.fillRect(this.x + 25, this.y + 35, 10, 15);
+                        }
+                    }
+                }
+            }
+        };
+
+        // Procedural Obstacle Model Blueprint
+        class Obstacle {
+            constructor(type) {
+                this.type = type;
+                this.x = 620;
+                
+                if (type === 'cactus_small') {
+                    this.width = 20;
+                    this.height = 36;
+                    this.y = 150 - this.height - 12;
+                } else if (type === 'cactus_large') {
